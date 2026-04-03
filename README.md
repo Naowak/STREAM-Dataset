@@ -1,6 +1,6 @@
-# Stream Benchmark
+# Stream Dataset
 
-A comprehensive benchmark suite for evaluating sequence modeling capabilities of neural networks, particularly focusing on memory, long-term dependencies, and temporal reasoning tasks.
+A comprehensive dataset suite for evaluating sequence modeling capabilities of neural networks, particularly focusing on memory, long-term dependencies, and temporal reasoning tasks.
 
 ## 🚀 Features
 
@@ -13,24 +13,24 @@ A comprehensive benchmark suite for evaluating sequence modeling capabilities of
 ## 📦 Installation
 
 ```bash
-pip install stream-benchmark
+pip install stream-dataset
 ```
 
 Or install from source:
 
 ```bash
-git clone https://github.com/Naowak/stream-benchmark.git
-cd stream-benchmark
+git clone https://github.com/Naowak/stream-dataset.git
+cd stream-dataset
 pip install -e .
 ```
 
 ## 🎯 Quick Start
 
 ```python
-import stream_benchmark as sb
+import stream_dataset as sd
 
 # Build a task
-task_data = sb.build_task('simple_copy', difficulty='small', seed=0)
+task_data = sd.build_task('simple_copy', difficulty='small', seed=0)
 
 # Access the data
 X_train = task_data['X_train']  # Training inputs
@@ -41,7 +41,7 @@ T_train = task_data['T_train']  # Prediction timesteps
 Y_pred = your_model.predict(X_train)
 
 # Evaluate performance
-score = sb.compute_score(
+score = sd.compute_score(
     Y=Y_train, 
     Y_hat=Y_pred, 
     prediction_timesteps=T_train,
@@ -56,56 +56,56 @@ print(f"Score: {score}")
 ### Postcasting Tasks
 - **`discrete_postcasting`**: Copy discrete sequences after a delay  
 
-    ![discrete_postcasting](https://raw.githubusercontent.com/Naowak/stream-benchmark/main/images/discrete_postcasting.png)
+    ![discrete_postcasting](https://raw.githubusercontent.com/Naowak/stream-dataset/main/images/discrete_postcasting.png)
 
 - **`continuous_postcasting`**: Copy continuous sequences after a delay  
 
-    ![continuous_postcasting](https://raw.githubusercontent.com/Naowak/stream-benchmark/main/images/continuous_postcasting.png)
+    ![continuous_postcasting](https://raw.githubusercontent.com/Naowak/stream-dataset/main/images/continuous_postcasting.png)
 
 ### Signal Processing
 - **`sinus_forecasting`**: Predict frequency-modulated sinusoidal signals 
 
-    ![sinus_forecasting](https://raw.githubusercontent.com/Naowak/stream-benchmark/main/images/sinus_forecasting.png)
+    ![sinus_forecasting](https://raw.githubusercontent.com/Naowak/stream-dataset/main/images/sinus_forecasting.png)
 
 - **`chaotic_forecasting`**: Forecast Lorenz system dynamics 
 
-    ![chaotic_forecasting](https://raw.githubusercontent.com/Naowak/stream-benchmark/main/images/chaotic_forecasting.png)
+    ![chaotic_forecasting](https://raw.githubusercontent.com/Naowak/stream-dataset/main/images/chaotic_forecasting.png)
 
 
 ### Long-term Dependencies
 - **`discrete_pattern_completion`**: Complete masked repetitive patterns (discrete)  
 
-    ![discrete_pattern_completion](https://raw.githubusercontent.com/Naowak/stream-benchmark/main/images/discrete_pattern_completion.png)
+    ![discrete_pattern_completion](https://raw.githubusercontent.com/Naowak/stream-dataset/main/images/discrete_pattern_completion.png)
 
 - **`continuous_pattern_completion`**: Complete masked repetitive patterns (continuous) 
 
-    ![continuous_pattern_completion](https://raw.githubusercontent.com/Naowak/stream-benchmark/main/images/continuous_pattern_completion.png)
+    ![continuous_pattern_completion](https://raw.githubusercontent.com/Naowak/stream-dataset/main/images/continuous_pattern_completion.png)
 
 - **`simple_copy`**: Memorize and reproduce sequences after delay + trigger  
 
-    ![simple_copy](https://raw.githubusercontent.com/Naowak/stream-benchmark/main/images/simple_copy.png)
+    ![simple_copy](https://raw.githubusercontent.com/Naowak/stream-dataset/main/images/simple_copy.png)
 
 - **`selective_copy`**: Memorize only marked elements and reproduce them  
 
-    ![selective_copy](https://raw.githubusercontent.com/Naowak/stream-benchmark/main/images/selective_copy.png)
+    ![selective_copy](https://raw.githubusercontent.com/Naowak/stream-dataset/main/images/selective_copy.png)
 
 
 ### Information Manipulation
 - **`adding_problem`**: Add numbers at marked positions  
 
-    ![adding_problem](https://raw.githubusercontent.com/Naowak/stream-benchmark/main/images/adding_problem.png)
+    ![adding_problem](https://raw.githubusercontent.com/Naowak/stream-dataset/main/images/adding_problem.png)
 
 - **`sorting_problem`**: Sort sequences according to given positions 
 
-    ![sorting_problem](https://raw.githubusercontent.com/Naowak/stream-benchmark/main/images/sorting_problem.png)
+    ![sorting_problem](https://raw.githubusercontent.com/Naowak/stream-dataset/main/images/sorting_problem.png)
 
 - **`bracket_matching`**: Validate parentheses sequences
 
-    ![bracket_matching](https://raw.githubusercontent.com/Naowak/stream-benchmark/main/images/bracket_matching.png)
+    ![bracket_matching](https://raw.githubusercontent.com/Naowak/stream-dataset/main/images/bracket_matching.png)
 
 - **`sequential_mnist`**: Classify MNIST digits read column by column 
 
-    ![sequential_mnist](https://raw.githubusercontent.com/Naowak/stream-benchmark/main/images/sequential_mnist.png)
+    ![sequential_mnist](https://raw.githubusercontent.com/Naowak/stream-dataset/main/images/sequential_mnist.png)
 
 
 ## 🔧 Task Configuration
@@ -131,13 +131,13 @@ For the tasks that allow it, the difficulty is also adjusted by the dimensions o
 
 ```python
 # Small configuration (fast)
-task_small = sb.build_task('bracket_matching', difficulty='small', seed=0)
+task_small = sd.build_task('bracket_matching', difficulty='small', seed=0)
 
 # Medium configuration (thorough)
-task_medium = sb.build_task('bracket_matching', difficulty='medium', seed=0)
+task_medium = sd.build_task('bracket_matching', difficulty='medium', seed=0)
 
 # Large configuration (comprehensive)
-task_large = sb.build_task('bracket_matching', difficulty='large', seed=0)
+task_large = sd.build_task('bracket_matching', difficulty='large', seed=0)
 ```
 
 ## 📊 Data Format
@@ -162,7 +162,7 @@ All tasks return a standardized dictionary:
 ## 🎨 Example: Complete Evaluation Pipeline
 
 ```python
-import stream_benchmark as sb
+import stream_dataset as sd
 import numpy as np
 from MyModel import MyModel
 
@@ -182,7 +182,7 @@ def evaluate_model_on_all_tasks(model, difficulty='small'):
         print(f"Evaluating on {task_name}...")
         
         # Load task
-        task_data = sb.build_task(task_name, difficulty=difficulty)
+        task_data = sd.build_task(task_name, difficulty=difficulty)
         
         # Train model (simplified)
         model = MyModel(...)
@@ -195,7 +195,7 @@ def evaluate_model_on_all_tasks(model, difficulty='small'):
         Y_pred = model.predict(task_data['X_test'])
         
         # Compute score
-        score = sb.compute_score(
+        score = sd.compute_score(
             Y=task_data['Y_test'],
             Y_hat=Y_pred,
             prediction_timesteps=task_data['T_test'],
@@ -242,30 +242,30 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📚 Citation
 
-If you use Stream Benchmark in your research, please cite:
+If you use Stream Dataset in your research, please cite:
 
 (paper in progress...)
 
 ```bibtex
-@software{stream_benchmark,
-  title={Stream Benchmark: Sequential Task Review to Evaluate Artificial Memory},
+@software{stream_dataset,
+  title={Stream Dataset: Sequential Task Review to Evaluate Artificial Memory},
   author={Yannis Bendi-Ouis, Xavier Hinaut},
   year={2025},
-  url={https://github.com/Naowak/stream-benchmark}
+  url={https://github.com/Naowak/stream-dataset}
 }
 ```
 
 ## 🙏 Acknowledgments
 
-- Inspired by classic sequence modeling benchmarks
+- Inspired by classic sequence modeling datasets
 - Built with NumPy and Hugging Face Datasets
 - MNIST task uses the official MNIST dataset
 
 ## 📞 Support
 
-- 🐛 Issues: [GitHub Issues](https://github.com/Naowak/stream-benchmark/issues)
-- 💬 Discussions: [GitHub Discussions](https://github.com/Naowak/stream-benchmark/discussions)
+- 🐛 Issues: [GitHub Issues](https://github.com/Naowak/stream-dataset/issues)
+- 💬 Discussions: [GitHub Discussions](https://github.com/Naowak/stream-dataset/discussions)
 
 ---
 
-*Stream Benchmark - Advancing sequence modeling evaluation, one task at a time.*
+*Stream Dataset - Advancing sequence modeling evaluation, one task at a time.*

@@ -1,4 +1,4 @@
-from stream_benchmark.tasks import *
+from stream_dataset.tasks import *
 
 # ----- Define the set configs -----
 stream_small = {

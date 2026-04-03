@@ -1,4 +1,4 @@
-import stream_benchmark.evals as evals
+import stream_dataset.evals as evals
 import numpy as np
 
 tasks = [
