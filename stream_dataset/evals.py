@@ -57,10 +57,15 @@ stream_small = {
         'classification': True,
         'params': {"n_train": 100, "n_valid": 20, "n_test": 100, "sequence_length": 10, "n_symbols": 3}, 
     },
-    'sequential_mnist': {
-        'fct': generate_sequential_mnist,
+    'cross_situation': {
+        'fct': generate_csl,
         'classification': True,
-        'params': {"n_train": 100, "n_valid": 20, "n_test": 100},
+        'params': {
+            "n_train": 100, "n_valid": 20, "n_test": 100, 
+            "objects": ['glass', 'orange'], 
+            "colors": ['blue', 'orange'], 
+            "positions": ['left', 'right']
+        },
     },
 }
 
@@ -120,10 +125,15 @@ stream_medium = {
         'classification': True,
         'params': {"n_train": 1000, "n_valid": 200, "n_test": 1000, "sequence_length": 20, "n_symbols": 8}, 
     },
-    'sequential_mnist': {
-        'fct': generate_sequential_mnist,
+    'cross_situation': {
+        'fct': generate_csl,
         'classification': True,
-        'params': {"n_train": 1000, "n_valid": 200, "n_test": 1000},
+        'params': {
+            "n_train": 1000, "n_valid": 200, "n_test": 1000, 
+            "objects": ['glass', 'orange', 'cup', 'bowl'], 
+            "colors": ['blue', 'orange', 'green', 'red'], 
+            "positions": ['left', 'right', ('center', 'middle')]
+        },
     },
 }
 
@@ -183,9 +193,14 @@ stream_large = {
         'classification': True,
         'params': {"n_train": 10000, "n_valid": 2000, "n_test": 10000, "sequence_length": 50, "n_symbols": 20}, 
     },
-    'sequential_mnist': {
-        'fct': generate_sequential_mnist,
+    'cross_situation': {
+        'fct': generate_csl,
         'classification': True,
-        'params': {"n_train": 10000, "n_valid": 2000, "n_test": 10000},
+        'params': {
+            "n_train": 10000, "n_valid": 2000, "n_test": 10000, 
+            "objects": ['glass', 'orange', 'cup', 'bowl', 'plate', 'spoon'], 
+            "colors": ['blue', 'orange', 'green', 'red', 'yellow', 'purple'], 
+            "positions": ['left', 'right', ('center', 'middle'), 'top', 'bottom']
+        },
     },
 }

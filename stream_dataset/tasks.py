@@ -1,7 +1,5 @@
 import numpy as np
-from datasets import load_dataset
-import urllib.request
-import os
+from stream_dataset.libs.CSL import TwoSituationCSLDataset
 
 
 # ------------ USEFUL FUNCTIONS ------------ #
@@ -541,87 +539,6 @@ def generate_sorting_problem(n_train=1000, n_valid=200, n_test=200, sequence_len
     rng = np.random.default_rng(seed)
     return _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, classification=True)
 
-def generate_sequential_mnist(n_train=1000, n_valid=200, n_test=200, path="./data/mnist/", seed=None):
-    """
-    [Multi sequence]
-    Generates an MNIST image classification task: the model must read an image column by column,
-    memorize it and classify it after a trigger.
-
-    Args:
-    - n_train (int): number of training samples
-    - n_valid (int): number of validation samples
-    - n_test (int): number of test samples
-    - path (str): path to the MNIST dataset, if path does not exist, the dataset is downloaded
-    - seed (int): random seed for reproducibility
-
-    Return:
-    - data (dict): dictionary containing the training, validation and test sets as well as
-    their respective prediction timesteps. It also contains the classification flag.
-    """
-    # Check data existence, download from huggingface if necessary
-    if not os.path.exists(path) or not os.path.exists(os.path.join(path, "mnist_train.parquet")) or not os.path.exists(os.path.join(path, "mnist_test.parquet")):
-        os.makedirs(path, exist_ok=True)
-        link_test = "https://huggingface.co/datasets/ylecun/mnist/resolve/main/mnist/test-00000-of-00001.parquet?download=true"
-        link_train = "https://huggingface.co/datasets/ylecun/mnist/resolve/main/mnist/train-00000-of-00001.parquet?download=true"
-        urllib.request.urlretrieve(link_test, os.path.join(path, "mnist_test.parquet"))
-        urllib.request.urlretrieve(link_train, os.path.join(path, "mnist_train.parquet"))
-    
-    # Load the dataset
-    dataset = load_dataset("parquet", data_files="./data/mnist/*.parquet")
-    nb_data = len(dataset['train']['image'])
-    
-    # Check the number of samples
-    n_samples = n_train + n_valid + n_test
-    if n_samples > nb_data:
-        raise ValueError(f"Not enough samples in the dataset. {nb_data} samples available, {n_samples} requested.")
-
-    # Shuffle and select the samples
-    rng = np.random.default_rng(seed)
-    shuffle = rng.permutation(nb_data)[:n_samples]
-    dataset = dataset['train'][shuffle]
-    X = np.array(dataset['image']).transpose(0, 2, 1)  # so we can read it column by column
-    Y = np.array(dataset['label'])
-
-    # Normalize the data
-    X = X / 255    
-
-    # Create inputs
-    inputs = np.zeros((X.shape[0], X.shape[1]+2, X.shape[2]+1))
-    inputs[:, -2, -1] = 1 # trigger
-    inputs[:, :-2, :-1] = X
-
-    # Create targets
-    targets = np.zeros((X.shape[0], X.shape[1]+2, 10))
-    targets[:, -1, :] = np.eye(10)[Y]
-
-    # Split the data into training and testing set
-    X_train = inputs[:n_train]
-    Y_train = targets[:n_train]
-    X_valid = inputs[n_train:n_train+n_valid]
-    Y_valid = targets[n_train:n_train+n_valid]
-    X_test = inputs[n_train+n_valid:]
-    Y_test = targets[n_train+n_valid:]
-
-    # Prediction start
-    T_train = np.array([np.arange(29, 30) for _ in range(n_train)])
-    T_valid = np.array([np.arange(29, 30) for _ in range(n_valid)])
-    T_test = np.array([np.arange(29, 30) for _ in range(n_test)])
-
-    # Create the data dictionary
-    data = {
-        'X_train': X_train,
-        'Y_train': Y_train,
-        'T_train': T_train,
-        'X_valid': X_valid,
-        'Y_valid': Y_valid,
-        'T_valid': T_valid,
-        'X_test': X_test,
-        'Y_test': Y_test,
-        'T_test': T_test,
-        'classification': True
-    }
-
-    return data
 
 def generate_bracket_matching(n_train=1000, n_valid=200, n_test=200, sequence_length=100, max_depth=5, seed=None):
     """
@@ -699,5 +616,64 @@ def generate_bracket_matching(n_train=1000, n_valid=200, n_test=200, sequence_le
         return input, target, timesteps
 
     # Generate the samples
+    rng = np.random.default_rng(seed)
+    return _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, classification=True)
+
+def generate_csl(n_train=1000, n_valid=200, n_test=200, objects=None, colors=None, positions=None, seed=None):
+    """
+    [Multi sequence]
+    Generates a Cross Situational Learning (CSL) task.
+    The model must read a sentence (encoded in one-hot) describing two situations 
+    and predict the corresponding roles/attributes at the end of the sequence.
+
+    Args:
+    - n_train (int): number of training samples
+    - n_valid (int): number of validation samples
+    - n_test (int): number of test samples
+    - objects (list): list of objects in the CSL dataset
+    - colors (list): list of colors in the CSL dataset
+    - positions (list): list of positions in the CSL dataset
+    - seed (int): random seed for reproducibility
+
+    Return:
+    - data (dict): dictionary containing the training, validation and test sets 
+    as well as their respective prediction timesteps. It also contains the classification flag.
+    """
+    
+    # Default parameters
+    if objects is None:
+        objects = ['glass', 'orange', 'cup', 'bowl']
+    if colors is None:
+        colors = ['blue', 'orange', 'green', 'red']
+    if positions is None:
+        positions = ['left', 'right', ('center', 'middle')]
+
+    # Instantiation of the global combinatorial generator
+    csl_dataset = TwoSituationCSLDataset(objects=objects, colors=colors, positions=positions)
+    X_all = csl_dataset.X
+    Y_all = csl_dataset.Y
+
+    N_total = X_all.shape[0]
+    n_steps = X_all.shape[1]
+    n_labels = Y_all.shape[1]
+
+    def generate_one_sample():
+        # Random draw of an index in the exhaustive CSL dataset
+        idx = rng.integers(0, N_total)
+        
+        # Retrieval of the input sequence (encoded sentence)
+        input_seq = X_all[idx]  # Shape: (n_steps, vocab_size)
+        
+        # Adaptation to STREAM format: the target must be of temporal dimension
+        # We fill with zeros and place the true target only at the end
+        target_seq = np.zeros((n_steps, n_labels))
+        target_seq[-1, :] = Y_all[idx]
+        
+        # The model must predict only at the end of the sentence
+        timesteps = np.array([n_steps - 1])
+
+        return input_seq, target_seq, timesteps
+
+    # Generation of samples
     rng = np.random.default_rng(seed)
     return _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, classification=True)
