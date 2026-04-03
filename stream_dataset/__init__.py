@@ -13,7 +13,7 @@ tasks = [
     'selective_copy',
     'adding_problem',
     'sorting_problem',
-    'sequential_mnist',
+    'cross_situation',
 ]
 
 def compute_score(Y, Y_hat, prediction_timesteps, classification):
@@ -63,7 +63,7 @@ def build_task(task_name, difficulty='small', seed=None, **kwargs):
     Parameters:
     - task_name (str): Name of the task between 'sinus_forecasting', 'chaotic_forecasting', 'discrete_postcasting',
         'continuous_postcasting', 'discrete_pattern_completion', 'continuous_pattern_completion', 'bracket_matching',
-        'simple_copy', 'selective_copy', 'adding_problem', 'sorting_problem', and 'sequential_mnist'
+        'simple_copy', 'selective_copy', 'adding_problem', 'sorting_problem', and 'cross_situation'.
     - difficulty (str): Difficulty level of the task ('small', 'medium' or 'large')
     - seed (int, optional): Seed for reproducibility. Default is None.
 

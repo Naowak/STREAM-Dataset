@@ -103,9 +103,9 @@ print(f"Score: {score}")
 
     ![bracket_matching](https://raw.githubusercontent.com/Naowak/stream-dataset/main/images/bracket_matching.png)
 
-- **`sequential_mnist`**: Classify MNIST digits read column by column 
+- **`cross_situation`**: Classify objects based on multiple attributes (color, shape, position)
 
-    ![sequential_mnist](https://raw.githubusercontent.com/Naowak/stream-dataset/main/images/sequential_mnist.png)
+    ![cross_situation](https://raw.githubusercontent.com/Naowak/stream-dataset/main/images/cross_situation.png)
 
 
 ## 🔧 Task Configuration
@@ -174,7 +174,7 @@ def evaluate_model_on_all_tasks(model, difficulty='small'):
         'simple_copy', 'selective_copy', 'adding_problem',
         'discrete_postcasting', 'continuous_postcasting',
         'discrete_pattern_completion', 'continuous_pattern_completion',
-        'bracket_matching', 'sorting_problem', 'sequential_mnist',
+        'bracket_matching', 'sorting_problem', 'cross_situation',
         'sinus_forecasting', 'chaotic_forecasting'
     ]
     
@@ -211,30 +211,12 @@ def evaluate_model_on_all_tasks(model, difficulty='small'):
 # results = evaluate_model_on_all_tasks(your_model, difficulty='medium')
 ```
 
-## 🧪 Task Details
-
-### Memory and Copy Tasks
-Test the model's ability to store and retrieve information over time.
-
-### Pattern Recognition Tasks  
-Evaluate pattern detection and completion capabilities with both discrete and continuous sequences.
-
-### Algorithmic Reasoning Tasks
-Assess the model's ability to perform computations on stored information (adding, sorting).
-
-### Real-world Sequence Tasks
-Include practical applications like MNIST digit classification and signal forecasting.
-
 ## 📈 Evaluation Metrics
 
 - **Classification tasks**: Error rate (1 - accuracy)
 - **Regression tasks**: Mean Squared Error (MSE)
 
 Lower scores indicate better performance for both metrics.
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
 
 ## 📄 License
 
@@ -259,7 +241,6 @@ If you use Stream Dataset in your research, please cite:
 
 - Inspired by classic sequence modeling datasets
 - Built with NumPy and Hugging Face Datasets
-- MNIST task uses the official MNIST dataset
 
 ## 📞 Support
 
