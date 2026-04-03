@@ -8,7 +8,7 @@ A comprehensive dataset suite for evaluating sequence modeling capabilities of n
 - **Multiple Difficulty Levels**: Small, medium and large configurations. Advice : if you're building an architecture, you should begin with small.
 - **Unified Interface**: Consistent API across all tasks with standardized evaluation metrics
 - **Ready-to-Use**: Pre-configured datasets with train/validation/test splits
-- **Flexible**: Support for both classification and regression tasks
+- **Flexible**: Support for both classification/multi-classification and regression tasks
 
 ## 📦 Installation
 
@@ -45,7 +45,7 @@ score = sd.compute_score(
     Y=Y_train, 
     Y_hat=Y_pred, 
     prediction_timesteps=T_train,
-    classification=task_data['classification']
+    category=task_data['category']
 )
 print(f"Score: {score}")
 ```
@@ -155,7 +155,7 @@ All tasks return a standardized dictionary:
     'X_test': np.ndarray,       # Test inputs
     'Y_test': np.ndarray,       # Test targets
     'T_test': np.ndarray,       # Test prediction timesteps
-    'classification': bool      # True for classification, False for regression : used to select the correspongind loss
+    'category': str      # 'classification', 'multi_classification', or 'regression'
 }
 ```
 
@@ -199,7 +199,7 @@ def evaluate_model_on_all_tasks(model, difficulty='small'):
             Y=task_data['Y_test'],
             Y_hat=Y_pred,
             prediction_timesteps=task_data['T_test'],
-            classification=task_data['classification']
+            category=task_data['category']
         )
         
         results[task_name] = score
@@ -215,6 +215,7 @@ def evaluate_model_on_all_tasks(model, difficulty='small'):
 
 - **Classification tasks**: Error rate (1 - accuracy)
 - **Regression tasks**: Mean Squared Error (MSE)
+- **Multi-class classification tasks**: Exact match accuracy (1 - exact match accuracy)
 
 Lower scores indicate better performance for both metrics.
 

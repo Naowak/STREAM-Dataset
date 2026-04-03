@@ -4,7 +4,7 @@ from stream_dataset.libs.CSL import TwoSituationCSLDataset
 
 # ------------ USEFUL FUNCTIONS ------------ #
 
-def _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, classification):
+def _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, category):
     """
     Generate the samples and split them into training, validation and testing sets.
     
@@ -16,7 +16,7 @@ def _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, 
     
     Returns:
     - data (dict): Dictionary containing the training, testing and validation sets and their respective prediction timesteps.
-    It also contains the classification flag.
+    It also contains the category flag.
     """
     # Generate the samples
     n_samples = n_train + n_test + n_valid
@@ -45,7 +45,7 @@ def _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, 
         'X_test': X_test,
         'Y_test': Y_test,
         'T_test': T_test,
-        'classification': classification
+        'category': category
     }
 
     return data
@@ -71,7 +71,7 @@ def generate_discrete_postcasting(n_train=1000, n_valid=200, n_test=200, sequenc
 
     Return:
     - data (dict): dictionary containing the training, validation and test sets as well as
-    their respective prediction timesteps. It also contains the classification flag.
+    their respective prediction timesteps. It also contains the category flag.
     """
     def generate_one_sample():
         # Generate the sequence
@@ -84,7 +84,7 @@ def generate_discrete_postcasting(n_train=1000, n_valid=200, n_test=200, sequenc
     
     # Generate the samples
     rng = np.random.default_rng(seed)
-    return _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, classification=True)
+    return _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, category='classification')
 
 
 
@@ -105,7 +105,7 @@ def generate_continuous_postcasting(n_train=1000, n_valid=200, n_test=200, seque
 
     Return:
     - data (dict): dictionary containing the training, validation and test sets as well as
-    their respective prediction timesteps. It also contains the classification flag.
+    their respective prediction timesteps. It also contains the category flag.
     """
     def generate_one_sample():
         # Generate the sequence
@@ -117,7 +117,7 @@ def generate_continuous_postcasting(n_train=1000, n_valid=200, n_test=200, seque
     
     # Generate the samples
     rng = np.random.default_rng(seed)
-    return _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, classification=False)
+    return _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, category='regression')
 
 # ------------ SIGNAL PROCESSING TEST ------------ #
 
@@ -137,7 +137,7 @@ def generate_sinus_forecasting(sequence_length=1000, forecast_length=1, training
 
     Return:
     - data (dict): dictionary containing the training, validation and test sets as well as
-    their respective prediction timesteps. It also contains the classification flag.
+    their respective prediction timesteps. It also contains the category flag.
     """
     # Check the ratios
     if training_ratio + testing_ratio + validation_ratio != 1:
@@ -182,7 +182,7 @@ def generate_sinus_forecasting(sequence_length=1000, forecast_length=1, training
         'X_test': X_test,
         'Y_test': Y_test,
         'T_test': T_test,
-        'classification': False
+        'category': 'regression'
     }
 
     return data
@@ -203,7 +203,7 @@ def generate_chaotic_forecasting(sequence_length=1000, forecast_length=1, traini
 
     Return:
     - data (dict): dictionary containing the training, validation and test sets as well as
-    their respective prediction timesteps. It also contains the classification flag.
+    their respective prediction timesteps. It also contains the category flag.
     """
     # Check the ratios
     if training_ratio + testing_ratio + validation_ratio != 1:
@@ -267,7 +267,7 @@ def generate_chaotic_forecasting(sequence_length=1000, forecast_length=1, traini
         'X_test': X_test,
         'Y_test': Y_test,
         'T_test': T_test,
-        'classification': False
+        'category': 'regression'
     }
 
     return data
@@ -294,7 +294,7 @@ def generate_discrete_pattern_completion(n_train=1000, n_valid=200, n_test=200, 
 
     Return:
     - data (dict): dictionary containing the training, validation and test sets as well as
-    their respective prediction timesteps. It also contains the classification flag.
+    their respective prediction timesteps. It also contains the category flag.
     """
     def generate_one_sample():
         # Generate a base pattern
@@ -316,7 +316,7 @@ def generate_discrete_pattern_completion(n_train=1000, n_valid=200, n_test=200, 
 
     # Generate the samples
     rng = np.random.default_rng(seed)
-    return _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, classification=True)
+    return _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, category='classification')
 
 def generate_continuous_pattern_completion(n_train=1000, n_valid=200, n_test=200, sequence_length=100, base_length=5, mask_ratio=0.2, seed=None):
     """
@@ -337,7 +337,7 @@ def generate_continuous_pattern_completion(n_train=1000, n_valid=200, n_test=200
 
     Return:
     - data (dict): dictionary containing the training, validation and test sets as well as
-    their respective prediction timesteps. It also contains the classification flag.
+    their respective prediction timesteps. It also contains the category flag.
     """
     def generate_one_sample():
         # Generate a base pattern
@@ -359,7 +359,7 @@ def generate_continuous_pattern_completion(n_train=1000, n_valid=200, n_test=200
     
     # Generate the samples
     rng = np.random.default_rng(seed)
-    return _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, classification=False)
+    return _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, category='regression')
 
 def generate_simple_copy(n_train=1000, n_valid=200, n_test=200, sequence_length=100, delay=10, n_symbols=8, seed=None):
     """
@@ -378,7 +378,7 @@ def generate_simple_copy(n_train=1000, n_valid=200, n_test=200, sequence_length=
 
     Return:
     - data (dict): dictionary containing the training, validation and test sets as well as
-    their respective prediction timesteps. It also contains the classification flag.
+    their respective prediction timesteps. It also contains the category flag.
     """
     def generate_one_sample():
         # Generate a random sequence
@@ -399,7 +399,7 @@ def generate_simple_copy(n_train=1000, n_valid=200, n_test=200, sequence_length=
 
     # Generate the samples
     rng = np.random.default_rng(seed)
-    return _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, classification=True)
+    return _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, category='classification')
 
 def generate_selective_copy(n_train=1000, n_valid=200, n_test=200, sequence_length=100, delay=2, n_markers=2, n_symbols=8, seed=None):
     """
@@ -419,7 +419,7 @@ def generate_selective_copy(n_train=1000, n_valid=200, n_test=200, sequence_leng
 
     Return: 
     - data (dict): dictionary containing the training, validation and test sets as well as
-    their respective prediction timesteps. It also contains the classification flag.
+    their respective prediction timesteps. It also contains the category flag.
     """
     def generate_one_sample():
         # generate random sequence
@@ -445,7 +445,7 @@ def generate_selective_copy(n_train=1000, n_valid=200, n_test=200, sequence_leng
     
     # Generate the samples
     rng = np.random.default_rng(seed)
-    return _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, classification=True)
+    return _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, category='classification')
 
 # ------------ TEST FOR MANIPULATION OF RETAINED INFORMATION ------------ #
 
@@ -465,7 +465,7 @@ def generate_adding_problem(n_train=1000, n_valid=200, n_test=200, sequence_leng
 
     Return:
     - data (dict): dictionary containing the training, validation and test sets as well as
-    their respective prediction timesteps. It also contains the classification flag.
+    their respective prediction timesteps. It also contains the category flag.
     """
     def generate_one_sample():
         # Generate the sequence
@@ -490,7 +490,7 @@ def generate_adding_problem(n_train=1000, n_valid=200, n_test=200, sequence_leng
 
     # Generate the samples
     rng = np.random.default_rng(seed)
-    return _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, classification=True)
+    return _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, category='classification')
 
 def generate_sorting_problem(n_train=1000, n_valid=200, n_test=200, sequence_length=100, n_symbols=8, seed=None):
     """
@@ -508,7 +508,7 @@ def generate_sorting_problem(n_train=1000, n_valid=200, n_test=200, sequence_len
 
     Return:
     - data (dict): dictionary containing the training, validation and test sets as well as
-    their respective prediction timesteps. It also contains the classification flag.
+    their respective prediction timesteps. It also contains the category flag.
     """
     def generate_one_sample():
         # Create a sequence of symbols & a random order
@@ -537,7 +537,7 @@ def generate_sorting_problem(n_train=1000, n_valid=200, n_test=200, sequence_len
     
     # Generate the samples
     rng = np.random.default_rng(seed)
-    return _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, classification=True)
+    return _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, category='classification')
 
 
 def generate_bracket_matching(n_train=1000, n_valid=200, n_test=200, sequence_length=100, max_depth=5, seed=None):
@@ -556,7 +556,7 @@ def generate_bracket_matching(n_train=1000, n_valid=200, n_test=200, sequence_le
 
     Return:
     - data (dict): dictionary containing the training, validation and test sets as well as
-    their respective prediction timesteps. It also contains the classification flag.
+    their respective prediction timesteps. It also contains the category flag.
     """
     def generate_valid_sequence(length, max_depth):
         sequence = []
@@ -617,7 +617,7 @@ def generate_bracket_matching(n_train=1000, n_valid=200, n_test=200, sequence_le
 
     # Generate the samples
     rng = np.random.default_rng(seed)
-    return _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, classification=True)
+    return _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, category='classification')
 
 def generate_csl(n_train=1000, n_valid=200, n_test=200, objects=None, colors=None, positions=None, seed=None):
     """
@@ -637,7 +637,7 @@ def generate_csl(n_train=1000, n_valid=200, n_test=200, objects=None, colors=Non
 
     Return:
     - data (dict): dictionary containing the training, validation and test sets 
-    as well as their respective prediction timesteps. It also contains the classification flag.
+    as well as their respective prediction timesteps. It also contains the category flag.
     """
     
     # Default parameters
@@ -676,4 +676,4 @@ def generate_csl(n_train=1000, n_valid=200, n_test=200, objects=None, colors=Non
 
     # Generation of samples
     rng = np.random.default_rng(seed)
-    return _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, classification=True)
+    return _generate_train_test_samples(n_train, n_valid, n_test, generate_one_sample, category='multi_classification')

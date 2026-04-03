@@ -16,7 +16,7 @@ tasks = [
     'cross_situation',
 ]
 
-def compute_score(Y, Y_hat, prediction_timesteps, classification):
+def compute_score(Y, Y_hat, prediction_timesteps, category):
     """
     Compute the accuracy of the model.
 
@@ -24,7 +24,7 @@ def compute_score(Y, Y_hat, prediction_timesteps, classification):
     - Y (np.ndarray): Target array [B, T, O]
     - Y_hat (np.ndarray): Predicted array [B, T, O]
     - prediction_timesteps (list): List of prediction timesteps
-    - classification (bool): Whether the task is a classification task -> accuracy or MSE
+    - category (str): Category of the task -> 'classification' (acc) or 'regression' (mse) or 'multi_classification' (exact match acc)
 
     Returns:
     - accuracy (float): Accuracy value
@@ -41,18 +41,30 @@ def compute_score(Y, Y_hat, prediction_timesteps, classification):
         preds.append(Y_hat[j, prediction_timesteps[j], :])
         truths.append(Y[j, prediction_timesteps[j], :])
 
-    if classification:
+    if category=='classification':
         # Compute the accuracy
         preds = np.argmax(np.stack(preds, axis=0), axis=-1)  # [B, prediction_timesteps] int: class
         truths = np.argmax(np.stack(truths, axis=0), axis=-1)  # [B, prediction_timesteps] int: class
         score = np.sum(preds == truths) / (truths.shape[0] * len(prediction_timesteps[0]))
         score = 1 - score
 
-    else:
+    elif category=='multi_classification':
+        # Compute the accuracy
+        sigmoid = lambda x: 1/(1 + np.exp(-x))
+        preds = np.stack(preds, axis=0)  # [B, prediction_timesteps] int: class
+        truths = np.stack(truths, axis=0)  # [B, prediction_timesteps] int: class
+        preds_bin = (sigmoid(preds) >= 0.5).astype(int)
+        correct_samples = np.all(preds_bin == truths, axis=(1, 2))
+        score = 1 - np.mean(correct_samples)
+
+    elif category=='regression':
         # Compute the MSE
         preds = np.stack(preds, axis=0).reshape(-1, Y.shape[-1])  # [B * prediction_timesteps, O] float: logits
         truths = np.stack(truths, axis=0).reshape(-1, Y.shape[-1])
         score = np.mean((preds - truths) ** 2)
+
+    else:
+        raise ValueError(f"Unknown category {category}. Must be 'classification', 'multi_classification' or 'regression'.")
 
     return score
 
