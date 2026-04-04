@@ -8,6 +8,8 @@ import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 import copy
 
+import sys
+sys.path.append('../')  # Permet d'importer stream_dataset et models depuis le dossier parent
 import stream_dataset as sd
 from models import DynamicLSTM, DynamicGRU, DynamicTransformerDecoderOnly, DynamicTransformerEncoderDecoder
 
@@ -45,6 +47,37 @@ def get_masked_loss(preds, targets, timesteps, category):
         loss = nn.MSELoss()(p_tensor, t_tensor)
         
     return loss
+
+def find_best_threshold(preds_logits, targets, timesteps):
+    """
+    Trouve le seuil optimal sur le set de validation pour minimiser l'Error Rate.
+    """
+    B = timesteps.shape[0]
+    p_list = [preds_logits[i, timesteps[i], :] for i in range(B)]
+    t_list = [targets[i, timesteps[i], :] for i in range(B)]
+    
+    preds = np.stack(p_list, axis=0)
+    truths = np.stack(t_list, axis=0)
+    
+    sigmoid = lambda x: 1 / (1 + np.exp(-x))
+    preds_probs = sigmoid(preds)
+    
+    best_thresh = 0.5
+    best_score = float('inf')
+    
+    # On teste 100 seuils entre 0.01 et 0.99
+    thresholds = np.linspace(0.01, 0.99, 100)
+    
+    for t in thresholds:
+        preds_bin = (preds_probs >= t).astype(int)
+        correct_samples = np.all(preds_bin == truths, axis=(1, 2))
+        score = 1 - np.mean(correct_samples)
+        
+        if score < best_score:
+            best_score = score
+            best_thresh = t
+            
+    return best_thresh
 
 def run_experiment():
     parser = argparse.ArgumentParser(description="Run Stream Dataset Evaluation on PyTorch")
@@ -139,6 +172,7 @@ def run_experiment():
                 loss.backward()
                 optimizer.step()
                 total_loss += loss.item()
+
                 
             # Phase de validation (à la fin de chaque epoch)
             model.eval()
@@ -170,6 +204,15 @@ def run_experiment():
         if args.patience > 0 and best_model_state is not None:
             model.load_state_dict(best_model_state)
                 
+        # Si c'est du multi-label, on optimise le seuil sur la validation !
+        best_threshold = 0.5
+        if category == 'multi_classification':
+            model.eval()
+            with torch.no_grad():
+                preds_val = model(X_valid).cpu().numpy()
+            best_threshold = find_best_threshold(preds_val, Y_valid_np, T_valid_np)
+            print(f"  -> Meilleur threshold trouvé sur la validation : {best_threshold:.2f}")
+
         # Phase de test final
         model.eval()
         with torch.no_grad():
@@ -180,7 +223,8 @@ def run_experiment():
             Y=task_data['Y_test'],
             Y_hat=preds_test_np,
             prediction_timesteps=task_data['T_test'],
-            category=category
+            category=category,
+            threshold=best_threshold
         )
         print(f"Score de Test final: {score:.4f}")
         

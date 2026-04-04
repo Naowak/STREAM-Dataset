@@ -16,7 +16,7 @@ tasks = [
     'cross_situation',
 ]
 
-def compute_score(Y, Y_hat, prediction_timesteps, category):
+def compute_score(Y, Y_hat, prediction_timesteps, category, threshold=0.5):
     """
     Compute the accuracy of the model.
 
@@ -53,7 +53,7 @@ def compute_score(Y, Y_hat, prediction_timesteps, category):
         sigmoid = lambda x: 1/(1 + np.exp(-x))
         preds = np.stack(preds, axis=0)  # [B, prediction_timesteps] int: class
         truths = np.stack(truths, axis=0)  # [B, prediction_timesteps] int: class
-        preds_bin = (sigmoid(preds) >= 0.5).astype(int)
+        preds_bin = (sigmoid(preds) >= threshold).astype(int)
         correct_samples = np.all(preds_bin == truths, axis=(1, 2))
         score = 1 - np.mean(correct_samples)
 
