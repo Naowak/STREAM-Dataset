@@ -16,7 +16,7 @@ tasks = [
     'cross_situation',
 ]
 
-def compute_score(Y, Y_hat, prediction_timesteps, category):
+def compute_score(Y, Y_hat, prediction_timesteps, category, threshold=0.5):
     """
     Compute the accuracy of the model.
 
@@ -24,7 +24,7 @@ def compute_score(Y, Y_hat, prediction_timesteps, category):
     - Y (np.ndarray): Target array [B, T, O]
     - Y_hat (np.ndarray): Predicted array [B, T, O]
     - prediction_timesteps (list): List of prediction timesteps
-    - category (str): Category of the task -> 'classification' (acc) or 'regression' (mse) or 'multi_classification' (exact match acc)
+    - category (str): Category of the task -> 'classification' (acc) or 'regression' (mse) or 'multi_classification'
 
     Returns:
     - accuracy (float): Accuracy value
@@ -53,8 +53,8 @@ def compute_score(Y, Y_hat, prediction_timesteps, category):
         sigmoid = lambda x: 1/(1 + np.exp(-x))
         preds = np.stack(preds, axis=0)  # [B, prediction_timesteps] int: class
         truths = np.stack(truths, axis=0)  # [B, prediction_timesteps] int: class
-        preds_bin = (sigmoid(preds) >= 0.5).astype(int)
-        correct_samples = np.all(preds_bin == truths, axis=(1, 2))
+        preds_bin = (sigmoid(preds) >= threshold).astype(int)
+        correct_samples = np.all(preds_bin == truths)
         score = 1 - np.mean(correct_samples)
 
     elif category=='regression':
