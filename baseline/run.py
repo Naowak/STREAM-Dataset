@@ -9,7 +9,7 @@ from torch.utils.data import TensorDataset, DataLoader
 import copy
 
 import sys
-sys.path.append('../')  # Permet d'importer stream_dataset et models depuis le dossier parent
+# sys.path.append('../')  # Permet d'importer stream_dataset et models depuis le dossier parent
 import stream_dataset as sd
 from models import DynamicLSTM, DynamicGRU, DynamicTransformerDecoderOnly, DynamicTransformerEncoderDecoder
 
@@ -81,7 +81,7 @@ def find_best_threshold(preds_logits, targets, timesteps):
 
 def run_experiment():
     parser = argparse.ArgumentParser(description="Run Stream Dataset Evaluation on PyTorch")
-    parser.add_argument('--model_type', type=str, default='lstm', choices=['lstm', 'gru', 'transformer_decoder', 'transformer_encdec'], help='Type de modèle à entrainer')
+    parser.add_argument('--model_types', nargs='+', default=['lstm'], choices=['lstm', 'gru', 'transformer_decoder', 'transformer_encdec'], help='Type de modèle à entrainer')
     parser.add_argument('--tasks', nargs='+', default=['all'], help='Liste des tâches')
     parser.add_argument('--difficulties', nargs='+', default=['small'], choices=['small', 'medium', 'large'], help='Niveaux de difficulté')
     parser.add_argument('--sizes', nargs='+', type=int, default=[1000, 10000], help='Tailles des paramètres visées')
@@ -103,10 +103,10 @@ def run_experiment():
     
     results = []
     
-    combinations = list(itertools.product(args.tasks, args.difficulties, args.sizes, range(args.seeds)))
+    combinations = list(itertools.product(args.model_types, args.tasks, args.difficulties, args.sizes, range(args.seeds)))
     
-    for task_name, difficulty, size, seed in combinations:
-        print(f"\n--- Model: {args.model_type.upper()} | Task: {task_name} | Diff: {difficulty} | Size: {size} | Seed: {seed} ---")
+    for model_type, task_name, difficulty, size, seed in combinations:
+        print(f"\n--- Model: {model_type.upper()} | Task: {task_name} | Diff: {difficulty} | Size: {size} | Seed: {seed} ---")
         
         try:
             task_data = sd.build_task(task_name, difficulty=difficulty, seed=seed)
@@ -137,20 +137,20 @@ def run_experiment():
         output_dim = Y_train.shape[-1]
         
         # Sélection du modèle
-        if args.model_type == 'lstm':
+        if model_type == 'lstm':
             model = DynamicLSTM(input_dim=input_dim, output_dim=output_dim, target_params=size).to(device, dtype=torch_dtype)
-        elif args.model_type == 'gru':
+        elif model_type == 'gru':
             model = DynamicGRU(input_dim=input_dim, output_dim=output_dim, target_params=size).to(device, dtype=torch_dtype)
-        elif args.model_type == 'transformer_decoder':
+        elif model_type == 'transformer_decoder':
             model = DynamicTransformerDecoderOnly(input_dim=input_dim, output_dim=output_dim, target_params=size).to(device, dtype=torch_dtype)
-        elif args.model_type == 'transformer_encdec':
+        elif model_type == 'transformer_encdec':
             model = DynamicTransformerEncoderDecoder(input_dim=input_dim, output_dim=output_dim, target_params=size).to(device, dtype=torch_dtype)
         else:
-            raise ValueError(f"Unknown model type {args.model_type}.")
+            raise ValueError(f"Unknown model type {model_type}.")
 
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
         
-        print(f"Modèle {args.model_type.upper()} initialisé avec ~{model.actual_params} paramètres (Cible: {size}).")
+        print(f"Modèle {model_type.upper()} initialisé avec ~{model.actual_params} paramètres (Cible: {size}).")
         
         # --- Variables pour l'Early Stopping ---
         best_val_score = float('inf')
@@ -229,7 +229,7 @@ def run_experiment():
         print(f"Score de Test final: {score:.4f}")
         
         results.append({
-            'Model': args.model_type.upper(),
+            'Model': model_type.upper(),
             'Task': task_name,
             'Difficulty': difficulty,
             'Target_Params': size,
