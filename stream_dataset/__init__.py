@@ -54,7 +54,7 @@ def compute_score(Y, Y_hat, prediction_timesteps, category, threshold=0.5):
         preds = np.stack(preds, axis=0)  # [B, prediction_timesteps] int: class
         truths = np.stack(truths, axis=0)  # [B, prediction_timesteps] int: class
         preds_bin = (sigmoid(preds) >= threshold).astype(int)
-        correct_samples = np.all(preds_bin == truths)
+        correct_samples = (preds_bin == truths)
         score = 1 - np.mean(correct_samples)
 
     elif category=='regression':
