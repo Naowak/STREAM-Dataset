@@ -2,6 +2,13 @@
 import math
 import torch
 import torch.nn as nn
+import reservoirpy as rpy
+from reservoirpy.nodes import Reservoir, Ridge
+import numpy as np
+import stream_dataset as sd
+
+# Désactiver les logs trop verbeux de reservoirpy pendant les expériences
+rpy.verbosity(0)
 
 class DynamicLSTM(nn.Module):
     def __init__(self, input_dim, output_dim, target_params):
@@ -175,3 +182,82 @@ class DynamicTransformerEncoderDecoder(nn.Module):
         out = self.transformer(src, tgt, tgt_mask=tgt_mask, tgt_is_causal=True)
         logits = self.fc_out(out)
         return logits
+    
+
+class DynamicESN:
+    def __init__(self, input_dim, output_dim, N, lr, sr, input_scaling):
+        """
+        N : Nombre de neurones dans le réservoir
+        lr : Leaking rate
+        sr : Spectral radius
+        input_scaling : Échelle d'entrée
+        """
+        self.reservoir = Reservoir(N, lr=lr, sr=sr, input_scaling=input_scaling)
+        self.readout = None # Sera instancié dynamiquement pendant le fit
+        
+        # Pour le logging (Readout linéaire uniquement)
+        self.actual_params = (output_dim * N)
+
+    def fit(self, X_train, Y_train, T_train, X_valid, Y_valid, T_valid, category):
+        """
+        Entraîne plusieurs readouts avec différents ridges et garde le meilleur sur le set de validation.
+        """
+        # 1. Extraction des états du réservoir pour le TRAIN
+        states_train = []
+        targets_train = []
+        
+        for i in range(len(X_train)):
+            s = self.reservoir.run(X_train[i], reset=True) 
+            t_idx = T_train[i]
+            states_train.append(s[t_idx])
+            targets_train.append(Y_train[i][t_idx])
+            
+        S_train_flat = np.vstack(states_train)
+        Y_train_flat = np.vstack(targets_train)
+
+        # 2. Extraction des états du réservoir pour la VALIDATION (calculé une seule fois !)
+        S_valid_full = []
+        for i in range(len(X_valid)):
+            s = self.reservoir.run(X_valid[i], reset=True)
+            S_valid_full.append(s)
+
+        # 3. Recherche du meilleur paramètre Ridge
+        best_score = float('inf')
+        best_ridge = None
+        best_readout = None
+        
+        # Gamme de 1e-1 à 1e-9
+        ridges = [10**(-i) for i in range(1, 10)]
+        
+        for r in ridges:
+            temp_readout = Ridge(ridge=r)
+            temp_readout.fit(S_train_flat, Y_train_flat)
+            
+            # Génération des prédictions de validation avec ce readout temporaire
+            preds_val = [temp_readout.run(s) for s in S_valid_full]
+            preds_val_np = np.stack(preds_val, axis=0)
+            
+            # Évaluation avec la fonction native du package
+            score = sd.compute_score(Y=Y_valid, Y_hat=preds_val_np, prediction_timesteps=T_valid, category=category)
+            
+            if score < best_score:
+                best_score = score
+                best_ridge = r
+                best_readout = temp_readout
+                
+        # 4. On sauvegarde définitivement le meilleur Readout
+        self.readout = best_readout
+        print(f"    -> Meilleur Ridge trouvé : {best_ridge} (Val Score: {best_score:.4f})")
+
+    def predict(self, X):
+        """
+        Génère les prédictions pour un ensemble de séquences.
+        """
+        preds = []
+        for i in range(len(X)):
+            s = self.reservoir.run(X[i], reset=True)
+            y = self.readout.run(s)
+            preds.append(y)
+            
+        return np.stack(preds, axis=0)
+        

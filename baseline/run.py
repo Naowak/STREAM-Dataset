@@ -1,4 +1,4 @@
-# run_experiments.py
+# run.py
 import argparse
 import itertools
 import pandas as pd
@@ -7,11 +7,11 @@ import torch
 import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 import copy
+import re
+import os
 
-import sys
-# sys.path.append('../')  # Permet d'importer stream_dataset et models depuis le dossier parent
 import stream_dataset as sd
-from models import DynamicLSTM, DynamicGRU, DynamicTransformerDecoderOnly, DynamicTransformerEncoderDecoder
+from models import DynamicLSTM, DynamicGRU, DynamicTransformerDecoderOnly, DynamicTransformerEncoderDecoder, DynamicESN
 
 def set_seed(seed):
     np.random.seed(seed)
@@ -19,10 +19,31 @@ def set_seed(seed):
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
+def parse_report_configs(filepath="report.md"):
+    """
+    Parse le fichier markdown pour récupérer les hyperparamètres de l'ESN.
+    """
+    configs = {}
+    if not os.path.exists(filepath):
+        print(f"Attention: {filepath} non trouvé. L'ESN ne pourra pas charger ses hyperparamètres.")
+        return configs
+        
+    with open(filepath, 'r') as f:
+        content = f.read()
+    
+    # Regex pour capturer "**tache.diff.Nxxx**" et le dictionnaire "```{'N'...}```"
+    pattern = r'\*\*(.*?)\*\*\n.*?```(.*?)```'
+    matches = re.findall(pattern, content, re.DOTALL)
+    
+    for key, dict_str in matches:
+        try:
+            configs[key] = eval(dict_str.strip())
+        except Exception as e:
+            print(f"Erreur de parsing pour {key}: {e}")
+            
+    return configs
+
 def get_masked_loss(preds, targets, timesteps, category):
-    """
-    Calcule la loss uniquement sur les timesteps indiqués par la tâche.
-    """
     B = timesteps.shape[0]
     O = preds.shape[-1]
     
@@ -49,9 +70,6 @@ def get_masked_loss(preds, targets, timesteps, category):
     return loss
 
 def find_best_threshold(preds_logits, targets, timesteps):
-    """
-    Trouve le seuil optimal sur le set de validation pour minimiser l'Error Rate.
-    """
     B = timesteps.shape[0]
     p_list = [preds_logits[i, timesteps[i], :] for i in range(B)]
     t_list = [targets[i, timesteps[i], :] for i in range(B)]
@@ -65,7 +83,6 @@ def find_best_threshold(preds_logits, targets, timesteps):
     best_thresh = 0.5
     best_score = float('inf')
     
-    # On teste 100 seuils entre 0.01 et 0.99
     thresholds = np.linspace(0.01, 0.99, 100)
     
     for t in thresholds:
@@ -80,15 +97,15 @@ def find_best_threshold(preds_logits, targets, timesteps):
     return best_thresh
 
 def run_experiment():
-    parser = argparse.ArgumentParser(description="Run Stream Dataset Evaluation on PyTorch")
-    parser.add_argument('--model_types', nargs='+', default=['lstm'], choices=['lstm', 'gru', 'transformer_decoder', 'transformer_encdec'], help='Type de modèle à entrainer')
+    parser = argparse.ArgumentParser(description="Run Stream Dataset Evaluation")
+    parser.add_argument('--model_types', nargs='+', default=['lstm'], choices=['lstm', 'gru', 'transformer_decoder', 'transformer_encdec', 'esn'], help='Type de modèle à entrainer')
     parser.add_argument('--tasks', nargs='+', default=['all'], help='Liste des tâches')
     parser.add_argument('--difficulties', nargs='+', default=['small'], choices=['small', 'medium', 'large'], help='Niveaux de difficulté')
     parser.add_argument('--sizes', nargs='+', type=int, default=[1000, 10000], help='Tailles des paramètres visées')
-    parser.add_argument('--seeds', type=int, default=5, help='Nombre de seeds par run')
-    parser.add_argument('--epochs', type=int, default=50, help='Nombre d\'epochs')
-    parser.add_argument('--batch_size', type=int, default=64, help='Taille du batch')
-    parser.add_argument('--patience', type=int, default=10, help='Nombre d\'epochs sans amélioration avant d\'arrêter (0 pour désactiver)')
+    parser.add_argument('--seeds', type=int, default=10, help='Nombre de seeds par run')
+    parser.add_argument('--epochs', type=int, default=50, help='Nombre d\'epochs (Ignoré par ESN)')
+    parser.add_argument('--batch_size', type=int, default=64, help='Taille du batch (Ignoré par ESN)')
+    parser.add_argument('--patience', type=int, default=10, help='Nombre d\'epochs sans amélioration (Ignoré par ESN)')
     parser.add_argument('--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu', help='Device (cuda/cpu)')
     parser.add_argument('--dtype', type=str, default='float32', help='Type de données Pytorch')
     parser.add_argument('--output', type=str, default='results.csv', help='Fichier CSV de sortie')
@@ -97,12 +114,14 @@ def run_experiment():
 
     if args.tasks == ['all']:
         args.tasks = sd.tasks
+        
+    # Charger les configs ESN si nécessaire
+    esn_configs = parse_report_configs('results/esn_hp_opti/report.md') if 'esn' in args.model_types else {}
     
     torch_dtype = getattr(torch, args.dtype)
     device = torch.device(args.device)
     
     results = []
-    
     combinations = list(itertools.product(args.model_types, args.tasks, args.difficulties, args.sizes, range(args.seeds)))
     
     for model_type, task_name, difficulty, size, seed in combinations:
@@ -117,108 +136,133 @@ def run_experiment():
         set_seed(seed)
         category = task_data['category']
         
-        # Train data
-        X_train = torch.tensor(task_data['X_train'], dtype=torch_dtype)
-        Y_train = torch.tensor(task_data['Y_train'], dtype=torch_dtype)
-        T_train = torch.tensor(task_data['T_train'], dtype=torch.long)
+        input_dim = task_data['X_train'].shape[-1]
+        output_dim = task_data['Y_train'].shape[-1]
         
-        # Validation data (On les garde en numpy pour sd.compute_score, mais X_valid passe sur le GPU)
-        X_valid = torch.tensor(task_data['X_valid'], dtype=torch_dtype).to(device)
-        Y_valid_np = task_data['Y_valid']
-        T_valid_np = task_data['T_valid']
-        
-        # Test data
-        X_test = torch.tensor(task_data['X_test'], dtype=torch_dtype).to(device)
-        
-        train_dataset = TensorDataset(X_train, Y_train, T_train)
-        train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
-        
-        input_dim = X_train.shape[-1]
-        output_dim = Y_train.shape[-1]
-        
-        # Sélection du modèle
-        if model_type == 'lstm':
-            model = DynamicLSTM(input_dim=input_dim, output_dim=output_dim, target_params=size).to(device, dtype=torch_dtype)
-        elif model_type == 'gru':
-            model = DynamicGRU(input_dim=input_dim, output_dim=output_dim, target_params=size).to(device, dtype=torch_dtype)
-        elif model_type == 'transformer_decoder':
-            model = DynamicTransformerDecoderOnly(input_dim=input_dim, output_dim=output_dim, target_params=size).to(device, dtype=torch_dtype)
-        elif model_type == 'transformer_encdec':
-            model = DynamicTransformerEncoderDecoder(input_dim=input_dim, output_dim=output_dim, target_params=size).to(device, dtype=torch_dtype)
-        else:
-            raise ValueError(f"Unknown model type {model_type}.")
+        best_val_score = None
+        best_threshold = 0.5
+        preds_test_np = None
 
-        optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-        
-        print(f"Modèle {model_type.upper()} initialisé avec ~{model.actual_params} paramètres (Cible: {size}).")
-        
-        # --- Variables pour l'Early Stopping ---
-        best_val_score = float('inf')
-        epochs_no_improve = 0
-        best_model_state = None
-        
-        for epoch in range(args.epochs):
-            # Phase d'entrainement
-            model.train()
-            total_loss = 0.0
-            for bx, by, bt in train_loader:
-                bx, by, bt = bx.to(device), by.to(device), bt.to(device)
+        # ----------------------------------------------------
+        # BRANCHE 1 : ECHO STATE NETWORK (ReservoirPy)
+        # ----------------------------------------------------
+        if model_type == 'esn':
+            config_key = f"{task_name}.{difficulty}.N{size//10}"
+            if config_key not in esn_configs:
+                print(f"  -> Configuration ESN introuvable pour '{config_key}' dans report.md. Skip.")
+                continue
                 
-                optimizer.zero_grad()
-                preds = model(bx)
-                
-                loss = get_masked_loss(preds, by, bt, category)
-                
-                loss.backward()
-                optimizer.step()
-                total_loss += loss.item()
-
-                
-            # Phase de validation (à la fin de chaque epoch)
-            model.eval()
-            with torch.no_grad():
-                preds_val = model(X_valid)
-                preds_val_np = preds_val.cpu().numpy()
-                
-            val_score = sd.compute_score(
-                Y=Y_valid_np,
-                Y_hat=preds_val_np,
-                prediction_timesteps=T_valid_np,
+            hparams = esn_configs[config_key]
+            
+            # Initialisation ESN (Plus de paramètre ridge ici)
+            model = DynamicESN(
+                input_dim=input_dim, 
+                output_dim=output_dim, 
+                N=hparams['N'], 
+                lr=hparams['lr'], 
+                sr=hparams['sr'], 
+                input_scaling=hparams['input_scaling']
+            )
+            print(f"Modèle ESN initialisé avec {model.actual_params} paramètres (N={hparams['N']}, lr={hparams['lr']:.3f}, sr={hparams['sr']:.3f}, is={hparams['input_scaling']:.3f}).")
+            
+            # Entraînement avec recherche automatique du Ridge sur la validation
+            model.fit(
+                X_train=task_data['X_train'], 
+                Y_train=task_data['Y_train'], 
+                T_train=task_data['T_train'],
+                X_valid=task_data['X_valid'], 
+                Y_valid=task_data['Y_valid'], 
+                T_valid=task_data['T_valid'],
                 category=category
             )
             
-            # Plus le score est bas, meilleur c'est (Error rate ou MSE)
-            if val_score < best_val_score:
-                best_val_score = val_score
-                epochs_no_improve = 0
-                best_model_state = copy.deepcopy(model.state_dict())
-            else:
-                epochs_no_improve += 1
+            # Optimisation du threshold (si multi_classification)
+            if category == 'multi_classification':
+                preds_val_np = model.predict(task_data['X_valid'])
+                best_threshold = find_best_threshold(preds_val_np, task_data['Y_valid'], task_data['T_valid'])
+                print(f"  -> Meilleur threshold trouvé sur la validation : {best_threshold:.2f}")
+
+            # Prédiction Test
+            preds_test_np = model.predict(task_data['X_test'])
+
+        # ----------------------------------------------------
+        # BRANCHE 2 : RÉSEAUX DE NEURONES (PyTorch)
+        # ----------------------------------------------------
+        else:
+            # Préparation Tensors
+            X_train = torch.tensor(task_data['X_train'], dtype=torch_dtype)
+            Y_train = torch.tensor(task_data['Y_train'], dtype=torch_dtype)
+            T_train = torch.tensor(task_data['T_train'], dtype=torch.long)
+            
+            X_valid = torch.tensor(task_data['X_valid'], dtype=torch_dtype).to(device)
+            Y_valid_np = task_data['Y_valid']
+            T_valid_np = task_data['T_valid']
+            X_test = torch.tensor(task_data['X_test'], dtype=torch_dtype).to(device)
+            
+            train_dataset = TensorDataset(X_train, Y_train, T_train)
+            train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
+            
+            # Instanciation
+            if model_type == 'lstm':
+                model = DynamicLSTM(input_dim=input_dim, output_dim=output_dim, target_params=size).to(device, dtype=torch_dtype)
+            elif model_type == 'gru':
+                model = DynamicGRU(input_dim=input_dim, output_dim=output_dim, target_params=size).to(device, dtype=torch_dtype)
+            elif model_type == 'transformer_decoder':
+                model = DynamicTransformerDecoderOnly(input_dim=input_dim, output_dim=output_dim, target_params=size).to(device, dtype=torch_dtype)
+            elif model_type == 'transformer_encdec':
+                model = DynamicTransformerEncoderDecoder(input_dim=input_dim, output_dim=output_dim, target_params=size).to(device, dtype=torch_dtype)
+            
+            optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+            print(f"Modèle {model_type.upper()} initialisé avec ~{model.actual_params} paramètres (Cible: {size}).")
+            
+            best_val_score = float('inf')
+            epochs_no_improve = 0
+            best_model_state = None
+            
+            for epoch in range(args.epochs):
+                model.train()
+                for bx, by, bt in train_loader:
+                    bx, by, bt = bx.to(device), by.to(device), bt.to(device)
+                    optimizer.zero_grad()
+                    preds = model(bx)
+                    loss = get_masked_loss(preds, by, bt, category)
+                    loss.backward()
+                    optimizer.step()
+
+                model.eval()
+                with torch.no_grad():
+                    preds_val_np = model(X_valid).cpu().numpy()
+                    
+                val_score = sd.compute_score(Y=Y_valid_np, Y_hat=preds_val_np, prediction_timesteps=T_valid_np, category=category)
                 
-            # Check de l'early stopping
-            if args.patience > 0 and epochs_no_improve >= args.patience:
-                print(f"  -> Early stopping déclenché à l'epoch {epoch+1}/{args.epochs} (Meilleur score val: {best_val_score:.4f})")
-                break
-                
-        # Restauration des meilleurs poids si on a utilisé l'early stopping
-        if args.patience > 0 and best_model_state is not None:
-            model.load_state_dict(best_model_state)
-                
-        # Si c'est du multi-label, on optimise le seuil sur la validation !
-        best_threshold = 0.5
-        if category == 'multi_classification':
+                if val_score < best_val_score:
+                    best_val_score = val_score
+                    epochs_no_improve = 0
+                    best_model_state = copy.deepcopy(model.state_dict())
+                else:
+                    epochs_no_improve += 1
+                    
+                if args.patience > 0 and epochs_no_improve >= args.patience:
+                    print(f"  -> Early stopping déclenché à l'epoch {epoch+1}/{args.epochs} (Meilleur score val: {best_val_score:.4f})")
+                    break
+                    
+            if args.patience > 0 and best_model_state is not None:
+                model.load_state_dict(best_model_state)
+                    
+            if category == 'multi_classification':
+                model.eval()
+                with torch.no_grad():
+                    preds_val_np = model(X_valid).cpu().numpy()
+                best_threshold = find_best_threshold(preds_val_np, Y_valid_np, T_valid_np)
+                print(f"  -> Meilleur threshold trouvé sur la validation : {best_threshold:.2f}")
+
             model.eval()
             with torch.no_grad():
-                preds_val = model(X_valid).cpu().numpy()
-            best_threshold = find_best_threshold(preds_val, Y_valid_np, T_valid_np)
-            print(f"  -> Meilleur threshold trouvé sur la validation : {best_threshold:.2f}")
+                preds_test_np = model(X_test).cpu().numpy()
 
-        # Phase de test final
-        model.eval()
-        with torch.no_grad():
-            preds_test = model(X_test)
-            preds_test_np = preds_test.cpu().numpy()
-            
+        # ----------------------------------------------------
+        # ÉVALUATION FINALE (Commun aux deux branches)
+        # ----------------------------------------------------
         score = sd.compute_score(
             Y=task_data['Y_test'],
             Y_hat=preds_test_np,
